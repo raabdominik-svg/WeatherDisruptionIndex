@@ -1,0 +1,1219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Travel Weather Disruption Index — El Niño 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&family=Space+Mono:wght@400&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg-page:      #050E1F;
+    --bg-map:       #071830;
+    --bg-sidebar:   #071426;
+    --bg-card:      #0D1F3C;
+    --bg-card-2:    #091830;
+    --border:       rgba(255,255,255,0.08);
+    --border-bright:rgba(255,255,255,0.15);
+    --text-primary: #E8EEF6;
+    --text-secondary:#8BA3C0;
+    --text-muted:   #4A6280;
+    --accent:       #1E8BC3;
+    --score-low:    #1A6FA8;
+    --score-mid:    #C45E0A;
+    --score-high:   #8B1A1A;
+    --score-crit:   #5C0E0E;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg-page);
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: linear-gradient(180deg, #030A16 0%, var(--bg-page) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .header-left { display: flex; align-items: center; gap: 14px; }
+
+  .header-badge {
+    background: rgba(30,139,195,0.15);
+    border: 1px solid rgba(30,139,195,0.35);
+    color: #5BC4F0;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding: 3px 8px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .header-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  .header-title span {
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .header-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  .header-meta strong {
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  .pulse-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #2ECC71;
+    border-radius: 50%;
+    margin-right: 5px;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(46,204,113,0.5); }
+    50%      { opacity: 0.6; box-shadow: 0 0 0 4px rgba(46,204,113,0); }
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .main-layout {
+    display: flex;
+    height: calc(100vh - 55px);
+  }
+
+  /* ── MAP PANEL ── */
+  .map-panel {
+    flex: 1;
+    background: var(--bg-map);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .map-hint {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(5,14,31,0.85);
+    border: 1px solid var(--border-bright);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    pointer-events: none;
+    white-space: nowrap;
+    backdrop-filter: blur(4px);
+    z-index: 5;
+    transition: opacity 0.4s;
+  }
+
+  .map-hint.hidden { opacity: 0; }
+
+  /* SVG map */
+  #world-map {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .region {
+    cursor: pointer;
+    transition: filter 0.2s, opacity 0.2s;
+  }
+
+  .region:hover { filter: brightness(1.35); opacity: 0.92; }
+  .region.active { filter: brightness(1.5) drop-shadow(0 0 8px currentColor); opacity: 1; }
+
+  .land-bg {
+    fill: #0E2240;
+    stroke: #162E50;
+    stroke-width: 0.4;
+    pointer-events: none;
+  }
+
+  .ocean-grid line {
+    stroke: rgba(30,80,140,0.12);
+    stroke-width: 0.3;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    position: absolute;
+    bottom: 18px;
+    left: 18px;
+    background: rgba(5,14,31,0.88);
+    border: 1px solid var(--border-bright);
+    border-radius: 8px;
+    padding: 10px 14px;
+    backdrop-filter: blur(6px);
+    z-index: 5;
+  }
+
+  .legend-title {
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 7px;
+  }
+
+  .legend-bar {
+    width: 160px;
+    height: 8px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #1A6FA8, #C45E0A, #8B1A1A);
+    margin-bottom: 5px;
+  }
+
+  .legend-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 340px;
+    min-width: 300px;
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    scrollbar-width: thin;
+    scrollbar-color: #1A3050 transparent;
+  }
+
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: #1A3050; border-radius: 4px; }
+
+  /* Default/empty state */
+  .sidebar-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 28px;
+    text-align: center;
+    gap: 16px;
+  }
+
+  .sidebar-empty-icon {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: rgba(30,139,195,0.1);
+    border: 1px solid rgba(30,139,195,0.25);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+
+  .sidebar-empty h3 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  .sidebar-empty p {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  /* Sidebar content */
+  #sidebar-content {
+    display: none;
+    flex-direction: column;
+    padding: 0 0 24px;
+  }
+
+  #sidebar-content.visible { display: flex; }
+
+  /* Region header */
+  .region-header {
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg-sidebar);
+    z-index: 2;
+  }
+
+  .region-cluster {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .region-name {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 3px;
+  }
+
+  .region-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+  }
+
+  /* Score gauge section */
+  .score-section {
+    padding: 20px 22px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .gauge-wrap {
+    position: relative;
+    width: 100px;
+    height: 60px;
+    flex-shrink: 0;
+  }
+
+  #gauge-svg { width: 100px; height: 60px; }
+
+  .gauge-score {
+    position: absolute;
+    bottom: -2px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .score-detail { flex: 1; }
+
+  .score-label {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .score-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .score-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .score-bar-label {
+    width: 28px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+    font-size: 9px;
+    flex-shrink: 0;
+  }
+
+  .score-bar-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+  }
+
+  .score-bar-val {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: var(--text-secondary);
+    width: 22px;
+    text-align: right;
+  }
+
+  /* Trend indicator */
+  .trend-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    margin-top: 8px;
+    border: 1px solid;
+  }
+
+  .trend-up   { background: rgba(139,26,26,0.15); border-color: rgba(139,26,26,0.4); color: #E07070; }
+  .trend-down { background: rgba(26,111,168,0.15); border-color: rgba(26,111,168,0.4); color: #70B0E0; }
+  .trend-flat { background: rgba(196,94,10,0.12); border-color: rgba(196,94,10,0.3); color: #D49050; }
+
+  /* Anomaly */
+  .anomaly-section {
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-label {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .anomaly-text {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+  }
+
+  /* Risk cards */
+  .risk-section {
+    padding: 16px 22px;
+  }
+
+  .risk-cards { display: flex; flex-direction: column; gap: 8px; }
+
+  .risk-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    transition: border-color 0.2s;
+  }
+
+  .risk-card:hover { border-color: var(--border-bright); }
+
+  .risk-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    border: 1px solid;
+  }
+
+  .risk-icon.low    { background: rgba(26,111,168,0.15); border-color: rgba(26,111,168,0.35); }
+  .risk-icon.medium { background: rgba(196,94,10,0.15);  border-color: rgba(196,94,10,0.35);  }
+  .risk-icon.high   { background: rgba(139,26,26,0.18);  border-color: rgba(139,26,26,0.4);   }
+
+  .risk-body { flex: 1; }
+
+  .risk-title {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .risk-pill {
+    font-size: 9px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 2px 7px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+
+  .risk-pill.low    { background: rgba(26,111,168,0.15); border-color: rgba(26,111,168,0.4); color: #5BC0F0; }
+  .risk-pill.medium { background: rgba(196,94,10,0.15);  border-color: rgba(196,94,10,0.45); color: #F0A050; }
+  .risk-pill.high   { background: rgba(139,26,26,0.18);  border-color: rgba(139,26,26,0.5);  color: #F07070; }
+
+  .risk-desc {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.55;
+  }
+
+  /* Sub-index mini table */
+  .subindex-section {
+    padding: 0 22px 4px;
+    border-top: 1px solid var(--border);
+    margin-top: 4px;
+  }
+
+  .subindex-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .subindex-cell {
+    background: var(--bg-card-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+  }
+
+  .subindex-key {
+    font-size: 8.5px;
+    font-family: 'Space Mono', monospace;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+    line-height: 1.3;
+  }
+
+  .subindex-val {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  /* Footer note */
+  .sidebar-footer {
+    padding: 14px 22px 0;
+    font-size: 10px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    border-top: 1px solid var(--border);
+    margin: 0 0 0;
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 768px) {
+    .main-layout { flex-direction: column; height: auto; min-height: calc(100vh - 55px); }
+    .map-panel { height: 54vw; min-height: 260px; flex: none; }
+    .sidebar { width: 100%; min-width: unset; border-left: none; border-top: 1px solid var(--border); }
+    .header-right { display: none; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .region, .score-bar-fill, .gauge-arc { transition: none !important; animation: none !important; }
+    .pulse-dot { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="header-left">
+    <div class="header-badge">WDS · El Niño 2026</div>
+    <div class="header-title">Global Travel <span>Weather Disruption Index</span></div>
+  </div>
+  <div class="header-right">
+    <div class="header-meta"><span class="pulse-dot"></span><strong>Live model</strong> snapshot</div>
+    <div class="header-meta">June 2026</div>
+    <div class="header-meta" style="color: var(--text-muted);">14 regions tracked</div>
+  </div>
+</header>
+
+<!-- ── MAIN LAYOUT ── -->
+<div class="main-layout">
+
+  <!-- ── MAP PANEL ── -->
+  <div class="map-panel">
+
+    <svg id="world-map" viewBox="0 0 1000 520" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+
+      <!-- Ocean background -->
+      <rect width="1000" height="520" fill="#050D1C"/>
+
+      <!-- Subtle lat/lon grid -->
+      <g class="ocean-grid" opacity="0.4">
+        <line x1="0" y1="104" x2="1000" y2="104"/>
+        <line x1="0" y1="208" x2="1000" y2="208"/>
+        <line x1="0" y1="312" x2="1000" y2="312"/>
+        <line x1="0" y1="416" x2="1000" y2="416"/>
+        <line x1="200" y1="0" x2="200" y2="520"/>
+        <line x1="400" y1="0" x2="400" y2="520"/>
+        <line x1="600" y1="0" x2="600" y2="520"/>
+        <line x1="800" y1="0" x2="800" y2="520"/>
+      </g>
+
+      <!-- ═══════════════════════════════════════
+           CONTINENTAL BACKGROUND LANDMASSES
+           (muted gray fill, non-clickable)
+      ════════════════════════════════════════ -->
+
+      <!-- North America background -->
+      <path class="land-bg" d="M68,28 L200,22 L230,40 L245,62 L248,90 L238,118 L228,148 L218,170 L200,188 L190,210 L186,238 L178,258 L164,268 L150,260 L138,248 L125,242 L108,248 L96,258 L88,272 L76,278 L64,268 L56,252 L48,228 L42,205 L38,182 L36,160 L38,138 L44,116 L52,94 L60,68 Z"/>
+
+      <!-- Central America + Caribbean background -->
+      <path class="land-bg" d="M164,268 L186,270 L198,280 L204,296 L198,308 L188,312 L176,308 L165,296 L160,280 Z"/>
+      <path class="land-bg" d="M206,252 L228,248 L240,256 L244,270 L236,278 L222,276 L210,268 Z"/>
+
+      <!-- South America background -->
+      <path class="land-bg" d="M186,308 L202,304 L218,308 L234,320 L244,340 L250,364 L252,390 L248,416 L238,440 L222,458 L205,468 L192,462 L178,448 L168,428 L160,406 L156,382 L154,356 L156,330 L162,314 Z"/>
+
+      <!-- Europe background -->
+      <path class="land-bg" d="M420,28 L500,24 L530,32 L548,48 L552,68 L544,88 L530,100 L514,108 L498,112 L480,118 L464,122 L448,118 L434,108 L422,96 L414,80 L412,62 L416,44 Z"/>
+
+      <!-- Africa background -->
+      <path class="land-bg" d="M458,130 L510,124 L548,130 L572,150 L582,178 L580,210 L574,244 L564,278 L548,308 L530,334 L510,354 L492,368 L475,368 L460,354 L446,332 L435,305 L428,274 L424,242 L424,210 L428,180 L436,158 L446,142 Z"/>
+
+      <!-- Asia background (large) -->
+      <path class="land-bg" d="M548,28 L700,18 L800,22 L870,30 L920,42 L950,60 L960,84 L952,110 L935,130 L910,148 L880,162 L848,172 L814,178 L778,178 L742,172 L706,162 L672,152 L638,148 L604,150 L574,156 L552,160 L536,152 L524,138 L518,120 L520,100 L528,80 L538,60 L544,42 Z"/>
+
+      <!-- Southeast Asia islands background -->
+      <path class="land-bg" d="M720,200 L760,194 L790,202 L808,220 L806,242 L790,256 L768,262 L744,256 L726,240 L716,220 Z"/>
+      <path class="land-bg" d="M770,260 L808,256 L830,270 L834,290 L820,304 L800,308 L778,298 L762,280 Z"/>
+
+      <!-- Australia background -->
+      <path class="land-bg" d="M748,330 L820,320 L872,328 L908,348 L928,376 L922,408 L900,432 L870,448 L836,452 L800,444 L768,426 L744,400 L730,368 L730,342 Z"/>
+
+      <!-- ═══════════════════════════════════════
+           TOURISM REGIONS (clickable, heat-map colored)
+           14 regions with WDS-driven fill
+      ════════════════════════════════════════ -->
+
+      <!-- R1: North America -->
+      <path id="r-north-america" class="region" data-region="north-america"
+        d="M70,32 L195,26 L225,44 L240,66 L242,92 L232,122 L220,152 L208,174 L195,192 L184,214 L180,240 L170,260 L155,266 L138,254 L122,244 L106,250 L92,262 L82,272 L70,264 L60,244 L50,220 L44,196 L40,172 L40,148 L46,122 L56,96 L66,68 Z"
+        fill="#1A6FA8" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R2: Caribbean Basin -->
+      <path id="r-caribbean" class="region" data-region="caribbean"
+        d="M168,270 L190,268 L210,272 L232,268 L248,274 L252,288 L246,302 L232,310 L214,314 L196,312 L180,306 L168,294 L162,282 Z"
+        fill="#C45E0A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R3: Central America -->
+      <path id="r-central-america" class="region" data-region="central-america"
+        d="M156,268 L172,264 L180,272 L184,286 L180,300 L170,308 L158,310 L148,304 L142,292 L144,280 Z"
+        fill="#8B1A1A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R4: South America -->
+      <path id="r-south-america" class="region" data-region="south-america"
+        d="M183,312 L200,308 L218,312 L234,326 L244,348 L248,374 L248,400 L242,426 L228,452 L210,466 L196,462 L182,448 L170,428 L162,404 L158,378 L158,352 L162,328 Z"
+        fill="#C45E0A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R5: Northern Europe -->
+      <path id="r-northern-europe" class="region" data-region="northern-europe"
+        d="M426,32 L496,28 L524,38 L538,56 L536,76 L524,92 L508,102 L488,108 L466,112 L446,106 L432,94 L422,78 L420,60 Z"
+        fill="#1A6FA8" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R6: Mediterranean -->
+      <path id="r-mediterranean" class="region" data-region="mediterranean"
+        d="M422,112 L470,116 L514,114 L550,120 L568,136 L570,156 L558,172 L540,180 L516,182 L490,178 L462,170 L436,158 L418,144 L412,128 Z"
+        fill="#8B1A1A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R7: Middle East & Gulf -->
+      <path id="r-middle-east" class="region" data-region="middle-east"
+        d="M556,130 L610,126 L642,134 L658,152 L656,178 L642,196 L620,206 L596,208 L572,200 L556,184 L550,164 L550,146 Z"
+        fill="#C45E0A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R8: East Africa -->
+      <path id="r-east-africa" class="region" data-region="east-africa"
+        d="M534,200 L570,196 L594,204 L604,224 L602,252 L590,276 L572,296 L550,308 L528,308 L510,292 L504,268 L504,244 L512,220 Z"
+        fill="#8B1A1A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R9: Southern Africa -->
+      <path id="r-southern-africa" class="region" data-region="southern-africa"
+        d="M508,312 L548,308 L572,316 L582,338 L578,364 L564,386 L544,402 L520,408 L498,402 L482,384 L476,360 L480,336 Z"
+        fill="#C45E0A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R10: Indian Ocean Islands -->
+      <path id="r-indian-ocean" class="region" data-region="indian-ocean"
+        d="M614,254 L638,252 L654,262 L658,280 L648,294 L630,298 L612,292 L602,276 L604,260 Z"
+        fill="#1A6FA8" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R11: South Asia -->
+      <path id="r-south-asia" class="region" data-region="south-asia"
+        d="M658,154 L710,148 L740,156 L754,174 L752,200 L740,222 L718,236 L692,242 L666,236 L648,218 L640,196 L644,172 Z"
+        fill="#8B1A1A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R12: Southeast Asia -->
+      <path id="r-southeast-asia" class="region" data-region="southeast-asia"
+        d="M726,200 L762,196 L788,206 L804,226 L800,252 L784,272 L760,282 L736,278 L716,262 L708,240 L714,218 Z"
+        fill="#8B1A1A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R13: East Asia -->
+      <path id="r-east-asia" class="region" data-region="east-asia"
+        d="M754,70 L840,62 L886,72 L912,94 L908,122 L888,142 L858,154 L824,158 L790,152 L760,140 L740,120 L736,96 Z"
+        fill="#C45E0A" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- R14: Oceania & Pacific -->
+      <path id="r-oceania" class="region" data-region="oceania"
+        d="M752,336 L822,328 L868,338 L900,358 L916,386 L908,416 L882,438 L848,448 L810,444 L772,428 L748,404 L736,374 L738,350 Z"
+        fill="#1A6FA8" stroke="#0A1A35" stroke-width="1" opacity="0.85"/>
+
+      <!-- Region Labels -->
+      <text x="120" y="155" fill="rgba(255,255,255,0.55)" font-size="8" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">N. AMERICA</text>
+      <text x="210" y="292" fill="rgba(255,255,255,0.55)" font-size="7" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">CARIBBEAN</text>
+      <text x="162" y="290" fill="rgba(255,255,255,0.55)" font-size="6.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">C. AM.</text>
+      <text x="204" y="388" fill="rgba(255,255,255,0.55)" font-size="8" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">S. AMERICA</text>
+      <text x="478" y="68" fill="rgba(255,255,255,0.55)" font-size="7.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">N. EUROPE</text>
+      <text x="492" y="152" fill="rgba(255,255,255,0.55)" font-size="7.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">MEDITERRANEAN</text>
+      <text x="604" y="168" fill="rgba(255,255,255,0.55)" font-size="7" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">MIDDLE EAST</text>
+      <text x="553" y="254" fill="rgba(255,255,255,0.55)" font-size="7.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">E. AFRICA</text>
+      <text x="530" y="362" fill="rgba(255,255,255,0.55)" font-size="7.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">S. AFRICA</text>
+      <text x="630" y="276" fill="rgba(255,255,255,0.55)" font-size="6.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">IND. OCN.</text>
+      <text x="698" y="198" fill="rgba(255,255,255,0.55)" font-size="7" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">S. ASIA</text>
+      <text x="757" y="240" fill="rgba(255,255,255,0.55)" font-size="7" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">SE ASIA</text>
+      <text x="826" y="112" fill="rgba(255,255,255,0.55)" font-size="7.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">E. ASIA</text>
+      <text x="826" y="388" fill="rgba(255,255,255,0.55)" font-size="7.5" font-family="Space Mono, monospace" text-anchor="middle" pointer-events="none">OCEANIA</text>
+
+    </svg>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-title">WDS Risk Level</div>
+      <div class="legend-bar"></div>
+      <div class="legend-labels">
+        <span>0 Low</span>
+        <span>50</span>
+        <span>100 Critical</span>
+      </div>
+    </div>
+
+    <div class="map-hint" id="map-hint">Click any highlighted region to view disruption forecast</div>
+
+  </div><!-- /map-panel -->
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <!-- Empty state -->
+    <div class="sidebar-empty" id="sidebar-empty">
+      <div class="sidebar-empty-icon">🌊</div>
+      <h3>Select a region</h3>
+      <p>Click any colored region on the map to view the Weather Disruption Score, El Niño forecast anomaly, and risk profiles for flights, accommodation, and experiences.</p>
+      <div style="margin-top:12px; padding: 10px 14px; background: rgba(30,139,195,0.08); border: 1px solid rgba(30,139,195,0.2); border-radius:6px; font-size:11px; color: var(--text-muted); line-height:1.6;">
+        <strong style="color: var(--text-secondary); display:block; margin-bottom:4px;">WDS Algorithm</strong>
+        WDS = (WSI × 0.6) + (TVI × 0.4)<br>
+        Weather Severity Index + Tourism Vulnerability
+      </div>
+    </div>
+
+    <!-- Dynamic content -->
+    <div id="sidebar-content">
+
+      <!-- Region header -->
+      <div class="region-header">
+        <div class="region-cluster" id="s-cluster"></div>
+        <div class="region-name" id="s-name"></div>
+        <div class="region-sub" id="s-sub"></div>
+      </div>
+
+      <!-- Score gauge -->
+      <div class="score-section">
+        <div class="gauge-wrap">
+          <svg id="gauge-svg" viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+            <!-- Track arc -->
+            <path d="M10,55 A45,45 0 0,1 90,55" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8" stroke-linecap="round"/>
+            <!-- Score arc (animated) -->
+            <path id="gauge-arc" d="M10,55 A45,45 0 0,1 90,55" fill="none" stroke="#1A6FA8" stroke-width="8" stroke-linecap="round"
+              stroke-dasharray="141.4" stroke-dashoffset="141.4"
+              style="transition: stroke-dashoffset 0.9s cubic-bezier(0.4,0,0.2,1), stroke 0.6s ease;"/>
+          </svg>
+          <div class="gauge-score" id="gauge-score" style="color: #1A6FA8;">—</div>
+        </div>
+        <div class="score-detail">
+          <div class="score-label">Index breakdown</div>
+          <div class="score-breakdown">
+            <div class="score-bar-row">
+              <span class="score-bar-label">WSI</span>
+              <div class="score-bar-track"><div class="score-bar-fill" id="wsi-bar" style="width:0%; background:#1A6FA8;"></div></div>
+              <span class="score-bar-val" id="wsi-val">—</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">TVI</span>
+              <div class="score-bar-track"><div class="score-bar-fill" id="tvi-bar" style="width:0%; background:#C45E0A;"></div></div>
+              <span class="score-bar-val" id="tvi-val">—</span>
+            </div>
+            <div class="score-bar-row">
+              <span class="score-bar-label">WDS</span>
+              <div class="score-bar-track"><div class="score-bar-fill" id="wds-bar" style="width:0%; background:#E04040;"></div></div>
+              <span class="score-bar-val" id="wds-val">—</span>
+            </div>
+          </div>
+          <div id="trend-badge"></div>
+        </div>
+      </div>
+
+      <!-- Anomaly -->
+      <div class="anomaly-section">
+        <div class="section-label">El Niño Forecast Anomaly — June 2026</div>
+        <div class="anomaly-text" id="s-anomaly"></div>
+      </div>
+
+      <!-- Risk cards -->
+      <div class="risk-section">
+        <div class="section-label" style="margin-bottom:10px;">Sector Risk Profiles</div>
+        <div class="risk-cards" id="risk-cards"></div>
+      </div>
+
+      <!-- Sub-index breakdown -->
+      <div class="subindex-section">
+        <div class="section-label" style="margin-top:14px;">Sub-index Components</div>
+        <div class="subindex-grid" id="subindex-grid"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="sidebar-footer" style="margin-top:18px;">
+        Model snapshot: June 2026. Scores are composite estimates derived from NOAA ENSO outlook, WMO seasonal anomaly data, and IATA disruption indices. Not a real-time forecast.
+      </div>
+
+    </div><!-- /sidebar-content -->
+  </aside>
+
+</div><!-- /main-layout -->
+
+<script>
+// ════════════════════════════════════════
+// WDS DATA ENGINE
+// WDS = (WSI * 0.6) + (TVI * 0.4)
+// ════════════════════════════════════════
+
+const REGIONS = {
+
+  "north-america": {
+    name: "North America",
+    cluster: "Americas",
+    sub: "United States · Canada · Mexico coasts",
+    wsi: 62, tvi: 44,
+    subindex: { intensityDelta: 68, duration: 65, predictability: 54, infraSensitivity: 40, resourceDependency: 38, peakSeasonality: 58 },
+    anomaly: "A strengthened Pacific Jet Stream is producing above-average precipitation across the US Southwest and a persistent drought anomaly in the Southeast. California and the Pacific Northwest face amplified atmospheric river events increasing coastal flooding risk through August. Hurricane season activity in the Gulf corridor is forecast at 140% of baseline.",
+    flights: { level: "medium", desc: "Cross-continental hubs (LAX, ORD, MIA) face elevated convective delay risk. Southwest monsoon season extending further north creates turbulence windows. Trans-Pacific routes are operating normally." },
+    accommodation: { level: "low", desc: "US and Canadian infrastructure is well-adapted. Some coastal properties in Florida and the Gulf face flash-flood advisories. Wildfire smoke events may force short-notice closures in mountain and Pacific Northwest resorts." },
+    experiences: { level: "medium", desc: "National parks in the West face early wildfire season restrictions. Coastal whale watching and dive tours in Baja California are disrupted by warmer-than-usual SSTs affecting migration patterns." },
+    trend: "up"
+  },
+
+  "caribbean": {
+    name: "Caribbean Basin",
+    cluster: "Americas",
+    sub: "Islands · Reef systems · Cruise corridors",
+    wsi: 78, tvi: 82,
+    subindex: { intensityDelta: 84, duration: 72, predictability: 78, infraSensitivity: 88, resourceDependency: 85, peakSeasonality: 74 },
+    anomaly: "Sea surface temperatures across the Caribbean are running 2.1°C above the 1991–2020 average, triggering a mass coral bleaching event across the Mesoamerican Barrier Reef and affecting reefs from Jamaica to Barbados. Combined with a hyperactive Atlantic hurricane season (167% of normal activity), island infrastructure is under compounding pressure with repeat storm events reducing recovery windows to near zero.",
+    flights: { level: "high", desc: "Hurricane season disruption is severe. San Juan (SJU), Nassau (NAS), and Montego Bay (MBJ) are reporting an average 4.2 significant disruption days per month. Island-hop routes frequently suspended June–October." },
+    accommodation: { level: "high", desc: "Repeat storm events in June–August have already caused partial structural damage to properties across Turks & Caicos and the Leeward Islands. Power grid instability on smaller islands affecting utility reliability. Many all-inclusives operating at reduced capacity." },
+    experiences: { level: "high", desc: "Coral bleaching has closed 60% of certified dive sites across the Cayman Islands and Belize. Reef tours are suspended or rerouted to deeper cooler-water sites. Beach erosion from storm surge is damaging coastlines across Barbados and Antigua." },
+    trend: "up"
+  },
+
+  "central-america": {
+    name: "Central America",
+    cluster: "Americas",
+    sub: "Costa Rica · Panama · Guatemala · Honduras",
+    wsi: 74, tvi: 78,
+    subindex: { intensityDelta: 78, duration: 76, predictability: 68, infraSensitivity: 82, resourceDependency: 80, peakSeasonality: 72 },
+    anomaly: "El Niño is producing a severe Pacific coast dry season extension and dramatically enhanced Caribbean slope rainfall. Costa Rica's Central Valley is experiencing the longest dry period since 1982. Meanwhile, Honduras and Guatemala face active landslide risk corridors due to extreme precipitation events. Hydropower generation is at 48% of capacity, directly impacting accommodation reliability.",
+    flights: { level: "medium", desc: "Tocumen (PTY) and Juan Santamaría (SJO) face elevated convective delays in the afternoon hours throughout the rainy season. No major route suspensions but schedule padding is recommended." },
+    accommodation: { level: "high", desc: "Hydropower shortfalls are causing rolling outages across rural eco-lodges and some urban hotels. Pacific coast properties face unusual dry-season heat with water supply constraints. Several jungle lodges have suspended operations through September." },
+    experiences: { level: "high", desc: "Rainforest canopy tours and river rafting operations are severely disrupted. Pacific surf breaks are unusually flat due to altered swell patterns. Cloud forest wildlife encounters — the region's primary draw — are reduced by phenological shifts in migratory species timing." },
+    trend: "up"
+  },
+
+  "south-america": {
+    name: "South America",
+    cluster: "Americas",
+    sub: "Amazon · Patagonia · Andes · Brazil coast",
+    wsi: 70, tvi: 66,
+    subindex: { intensityDelta: 74, duration: 72, predictability: 64, infraSensitivity: 62, resourceDependency: 72, peakSeasonality: 58 },
+    anomaly: "The 2026 El Niño is producing severe Amazon drought conditions, with river levels on the Rio Negro at multi-decadal lows severely curtailing river cruise operations. Northern and Central Brazil face below-normal rainfall reinforcing multi-year drought stress. In contrast, extreme precipitation is affecting Southern Brazil, Uruguay, and Buenos Aires with record flooding in April–May. Patagonia glacier retreat is accelerating.",
+    flights: { level: "medium", desc: "Fog and convective activity around São Paulo (GRU) and Buenos Aires (EZE) are producing above-average delay rates. Amazonian regional routes face limited visibility days. No significant international route suspensions." },
+    accommodation: { level: "medium", desc: "River cruise accommodations on the Amazon and Pantanal are severely constrained. Buenos Aires and São Paulo city hotels are largely unaffected. Patagonian lodges face access disruption from elevated runoff and glacial lake outburst flood risk." },
+    experiences: { level: "high", desc: "Amazon river dolphin watching and jungle tours are suspended across the Manaus corridor due to record low water. Iguazu Falls is running at 220% normal volume providing spectacular viewing but closing some catwalks. Antarctic cruise staging from Ushuaia is facing enhanced Drake Passage swell conditions." },
+    trend: "up"
+  },
+
+  "northern-europe": {
+    name: "Northern Europe",
+    cluster: "Europe & Mediterranean",
+    sub: "Scandinavia · UK · Netherlands · Baltics",
+    wsi: 38, tvi: 30,
+    subindex: { intensityDelta: 42, duration: 35, predictability: 38, infraSensitivity: 28, resourceDependency: 25, peakSeasonality: 38 },
+    anomaly: "Northern Europe is experiencing a mildly positive El Niño teleconnection with drier, warmer summer conditions across Scandinavia and the UK. While this is a net positive for summer tourism, above-normal temperatures are stressing urban heat infrastructure in cities not designed for extended heat events. Scotland and Norway are experiencing unusually low snowpack affecting winter tourism legacy operations.",
+    flights: { level: "low", desc: "European hub performance at LHR, AMS, and CPH is close to historical norms. Summer convective activity slightly elevated but well within infrastructure tolerance. No significant disruption forecast." },
+    accommodation: { level: "low", desc: "Infrastructure is broadly robust. Some urban hotels in London, Amsterdam, and Stockholm are activating heat emergency protocols during peak summer weeks. Overall guest experience impact is low." },
+    experiences: { level: "low", desc: "Scandinavian fjord cruising and hiking conditions are broadly positive. UK coastal tourism is benefiting from warmer temperatures. Scottish Highlands midges are appearing 3 weeks earlier than historical average." },
+    trend: "flat"
+  },
+
+  "mediterranean": {
+    name: "Mediterranean Basin",
+    cluster: "Europe & Mediterranean",
+    sub: "Spain · Italy · Greece · Turkey · Morocco · Tunisia",
+    wsi: 82, tvi: 76,
+    subindex: { intensityDelta: 88, duration: 82, predictability: 76, infraSensitivity: 72, resourceDependency: 80, peakSeasonality: 76 },
+    anomaly: "The Mediterranean is experiencing its most severe El Niño–amplified heat summer on record. Western Mediterranean SSTs are at +2.8°C anomaly, driving marine heatwave conditions that are collapsing fisheries and producing extraordinary jellyfish blooms along Spanish and Italian coasts. Wildfire risk across Greece, Turkey, Portugal, and Southern France is extreme with multiple simultaneous fire fronts having burned 340,000 ha year-to-date. Severe drought in Morocco and Tunisia is affecting water access for tourist facilities.",
+    flights: { level: "medium", desc: "Heat-related ground delays at Athens (ATH), Rome (FCO), and Palma (PMI) are occurring on peak heat days above 42°C. Aircraft performance limits require weight restrictions on some routes. Overall connectivity maintained but summer peak disruption is elevated." },
+    accommodation: { level: "high", desc: "Water rationing is in effect across Greek islands, southern Spain, and parts of Turkey. Air conditioning strain is causing grid instability in peak periods. Several Greek island resorts have received government notices about water supply constraints for July–August. Wildfire evacuation events have displaced guests multiple times already in 2026." },
+    experiences: { level: "high", desc: "Jellyfish blooms are affecting beach quality across Spain, Italy, and Greece. Underwater visibility on popular dive sites degraded by thermal stratification. Outdoor historical site tours restricted to morning hours due to heat warnings. 12 UNESCO sites in the region have introduced temporary capacity limits citing visitor safety." },
+    trend: "up"
+  },
+
+  "middle-east": {
+    name: "Middle East & Gulf",
+    cluster: "Europe & Mediterranean",
+    sub: "UAE · Saudi Arabia · Jordan · Oman · Red Sea",
+    wsi: 55, tvi: 72,
+    subindex: { intensityDelta: 60, duration: 58, predictability: 47, infraSensitivity: 68, resourceDependency: 78, peakSeasonality: 70 },
+    anomaly: "The Gulf region is experiencing an extreme heat summer with Dubai, Riyadh, and Doha posting wet bulb temperatures approaching physiological safety limits on several June days. Red Sea SSTs have triggered a significant bleaching event affecting reef systems from Aqaba to the Farasan Islands. Dust storm frequency (haboob) is elevated at 180% of baseline, creating aviation and outdoor disruption.",
+    flights: { level: "medium", desc: "Dubai (DXB), Abu Dhabi (AUH), and Doha (DOH) are performing well as transit hubs with climate-controlled infrastructure. Dust storm events causing temporary ground stops averaging 6–8 hours. Increased ACARS temp-check requirements on regional routes." },
+    accommodation: { level: "low", desc: "Gulf city hotels and resorts have world-class cooling infrastructure performing at design limits. Outdoor pool and beach usage restricted during peak heat. Jordan and Oman mountain properties are offering superior conditions as alternatives to coast." },
+    experiences: { level: "medium", desc: "Red Sea diving is severely impacted by bleaching — Hurghada and Sharm el-Sheikh operators reporting 40% tour cancellations. Desert safari and outdoor experiences are suspended June–September. Petra and Wadi Rum have introduced dawn-only visitor windows." },
+    trend: "flat"
+  },
+
+  "east-africa": {
+    name: "East Africa",
+    cluster: "Africa & Indian Ocean",
+    sub: "Kenya · Tanzania · Rwanda · Zanzibar · Mozambique",
+    wsi: 72, tvi: 80,
+    subindex: { intensityDelta: 76, duration: 74, predictability: 66, infraSensitivity: 82, resourceDependency: 84, peakSeasonality: 74 },
+    anomaly: "East Africa's 2026 'long rains' season was exceptionally intense, driven by El Niño–enhanced Indian Ocean Dipole conditions. Kenya and Tanzania received 340% of normal March–May rainfall causing catastrophic flooding of safari roads and aircraft access routes to remote game reserves. The Great Migration in the Mara is tracking 6 weeks ahead of historical schedule, complicating tour planning. Kilimanjaro cloud cover is significantly above average.",
+    flights: { level: "high", desc: "Domestic bush airstrips in Masai Mara, Serengeti, and Selous are severely compromised with multiple closures due to waterlogging. Nairobi (NBO) and Dar es Salaam (DAR) international operations normal but connecting small aircraft routes disrupted 60%+ of days." },
+    accommodation: { level: "high", desc: "Multiple luxury tented camps in Kenya and Tanzania have been evacuated or closed due to flooding. Several iconic lodges along the Mara River are inaccessible. Zanzibar beach properties face power instability and road access issues from storm damage. Recovery timeline estimated at 8–12 weeks for full reopening." },
+    experiences: { level: "high", desc: "Classic safari game drive circuits are significantly impaired with most dirt track networks impassable by standard 4WD. Hot air balloon operations suspended over Masai Mara. Mountain gorilla trekking in Rwanda maintaining operations with modified trail systems. Beach operations in Zanzibar and Malindi compromised by sediment runoff and jellyfish." },
+    trend: "up"
+  },
+
+  "southern-africa": {
+    name: "Southern Africa",
+    cluster: "Africa & Indian Ocean",
+    sub: "South Africa · Botswana · Zimbabwe · Zambia · Namibia",
+    wsi: 58, tvi: 62,
+    subindex: { intensityDelta: 62, duration: 56, predictability: 56, infraSensitivity: 58, resourceDependency: 68, peakSeasonality: 60 },
+    anomaly: "Southern Africa is experiencing El Niño's signature dry anomaly with the Okavango Delta at its lowest recorded inflow level, compressing wildlife into smaller corridors around permanent water. Victoria Falls is at 35% of average flow — historically striking but impacting activities. The Cape of Good Hope is experiencing above-average winter rainfall while inland regions face drought stress affecting rural lodge water supply.",
+    flights: { level: "low", desc: "Johannesburg (JNB) and Cape Town (CPT) are performing normally. Regional connections to Maun (Okavango gateway) and Livingstone (Victoria Falls) are operating with minimal disruption. No significant weather-related closures." },
+    accommodation: { level: "medium", desc: "Water scarcity is affecting rural lodges and camps in Botswana's drier zones. Several camps in the Kalahari have introduced water conservation protocols. Upscale lodges are managing well; budget properties face supply pressure." },
+    experiences: { level: "medium", desc: "Victoria Falls activities (white-water rafting, swimming in Devil's Pool) are operating but visually reduced — a double-edged experience. Okavango mokoro (dugout canoe) safaris are disrupted by low water levels. Wildlife concentrations around permanent water are actually creating exceptional game viewing in Chobe and Hwange." },
+    trend: "flat"
+  },
+
+  "indian-ocean": {
+    name: "Indian Ocean Islands",
+    cluster: "Africa & Indian Ocean",
+    sub: "Maldives · Seychelles · Mauritius · Réunion",
+    wsi: 44, tvi: 68,
+    subindex: { intensityDelta: 50, duration: 40, predictability: 42, infraSensitivity: 72, resourceDependency: 70, peakSeasonality: 62 },
+    anomaly: "The Indian Ocean Dipole is in a weakly negative phase complementing El Niño conditions, producing slightly elevated SSTs in the central and western Indian Ocean. Maldives reef systems are showing moderate bleaching stress (Alert Level 1) compared to severe conditions during 2016 and 2023 events — a relative reprieve, but degradation is cumulative. Mauritius and Réunion are experiencing elevated cyclone-season tail risk.",
+    flights: { level: "low", desc: "Malé (MLE), Mahé (SEZ), and Mauritius (MRU) are operating with strong international connectivity. Some seasonal cyclone-track monitoring advisories remain active for Mauritius and Réunion through July." },
+    accommodation: { level: "low", desc: "Maldives overwater villas and island resorts maintain high operational standards with strong infrastructure investment. Slight increase in generator reliance due to cooling demand. Seychelles properties are well-positioned with diverse island options." },
+    experiences: { level: "medium", desc: "Maldives reef diving is impacted by moderate bleaching — visibility and coral health reduced compared to 2023 baseline. Whale shark and manta ray aggregations are occurring but tracking slightly off historical hotspot locations. Seychelles granitic island hikes and beaches remain excellent." },
+    trend: "down"
+  },
+
+  "south-asia": {
+    name: "South Asia",
+    cluster: "South & Central Asia",
+    sub: "India · Nepal · Sri Lanka · Maldives monsoon belt",
+    wsi: 76, tvi: 74,
+    subindex: { intensityDelta: 80, duration: 78, predictability: 70, infraSensitivity: 70, resourceDependency: 76, peakSeasonality: 76 },
+    anomaly: "The 2026 Indian monsoon arrived 18 days early and has been running at 148% of long-period average, creating devastating floods across Kerala, Mumbai, and the Gangetic plain. Nepal's pre-monsoon season produced record glacial lake outburst floods (GLOFs) affecting trekking routes in the Khumbu and Langtang regions. Sri Lanka's tourism corridors in the Hill Country are experiencing landslide closures on main roads. The heat wave preceding the monsoon broke temperature records in Delhi and Rajasthan.",
+    flights: { level: "high", desc: "Mumbai (BOM), Chennai (MAA), and Kolkata (CCU) are all experiencing significant monsoon-season disruption. Fog and convective events are producing average 90-minute delays. Kathmandu (KTM) mountain approach routes face above-average visibility restrictions. Domestic route performance across India is at seasonal lows." },
+    accommodation: { level: "high", desc: "Flood disruption across Mumbai, Goa, and Kerala coastal areas has caused property closures and guest displacements. Heritage hotel properties in Rajasthan are well-positioned for the tourist season. Himalayan trekking lodge networks in Nepal are extensively disrupted with trail washouts." },
+    experiences: { level: "high", desc: "Everest Base Camp trekking via traditional routes is closed due to GLOF damage to Lukla approach trails — alternate routing adds 4 days. Kerala backwater houseboat tours suspended in flood-affected zones. Rajasthan desert and heritage tours are operating well as a viable alternative. Tiger reserves in Central India have extended monsoon closures." },
+    trend: "up"
+  },
+
+  "southeast-asia": {
+    name: "Southeast Asia",
+    cluster: "South & Central Asia",
+    sub: "Thailand · Bali · Vietnam · Philippines · Malaysia",
+    wsi: 68, tvi: 76,
+    subindex: { intensityDelta: 72, duration: 70, predictability: 64, infraSensitivity: 74, resourceDependency: 80, peakSeasonality: 74 },
+    anomaly: "Southeast Asia is experiencing one of the most intense El Niño–linked heat-and-drought cycles in the observational record. Thailand and Vietnam recorded temperatures above 44°C in April–May, with schools and tourist sites closed for extended periods. Bali faces its most severe dry season in 40 years with water rationing affecting accommodation in Kuta and Ubud. The Philippines experienced an early and intense typhoon season. Coral Triangle reef systems are under significant bleaching pressure.",
+    flights: { level: "medium", desc: "Bangkok (BKK/DMK), Bali (DPS), and Manila (MNL) are all experiencing elevated weather-related delays, particularly during afternoon convective events. Typhoon tracking is active for the Philippines corridor. Overall international connectivity is maintained." },
+    accommodation: { level: "high", desc: "Water rationing is in effect across Bali's main tourist corridors. Several Ubud and Seminyak hotels are trucking in water at significantly increased cost, impacting mid-range properties. Thai resort islands (Koh Samui, Koh Lipe) face similar dry season supply pressure." },
+    experiences: { level: "high", desc: "Coral bleaching across the Coral Triangle is severe — dive operators in the Raja Ampat, Komodo, and Philippines are reporting 50–70% bleached coverage. Bali rice terrace treks are running with modified timing due to heat. Halong Bay cruise operations in Vietnam are periodically suspended due to extreme heat advisories." },
+    trend: "up"
+  },
+
+  "east-asia": {
+    name: "East Asia",
+    cluster: "East Asia & Pacific",
+    sub: "Japan · South Korea · China · Taiwan · Hong Kong",
+    wsi: 52, tvi: 48,
+    subindex: { intensityDelta: 56, duration: 50, predictability: 50, infraSensitivity: 46, resourceDependency: 44, peakSeasonality: 54 },
+    anomaly: "East Asia is experiencing a split El Niño signal with northern Japan and South Korea having a drier, warmer than normal spring, while southern Japan and eastern China face elevated typhoon risk through August. The Yangtze basin in China received 190% of normal June rainfall producing flooding around key tourism sites. Japan's cherry blossom season tracked 12 days early, disrupting sakura tourism timing. South Korean Jeju Island is reporting elevated sea surface temperatures affecting marine tourism.",
+    flights: { level: "medium", desc: "Tokyo (NRT/HND), Seoul (ICN), and Shanghai (PVG) are well-equipped to handle elevated weather stress. Typhoon tracking remains active June–September with average 1.8 significant diversions per month expected at Taiwanese and southern Japanese airports." },
+    accommodation: { level: "low", desc: "East Asian tourism infrastructure is highly resilient with excellent climate control systems. Some ryokan and traditional guesthouse properties in flood-prone Kyushu and Yangtze River valley areas face seasonal risk. Major city properties are well-managed." },
+    experiences: { level: "medium", desc: "Yangtze River cruises from Chongqing to Three Gorges are disrupted by high water levels affecting gorge aesthetics and dock access. Japan summer festivals are proceeding with heat advisories in force above 38°C. South Korean coastal and island marine tours impacted by jellyfish bloom." },
+    trend: "flat"
+  },
+
+  "oceania": {
+    name: "Oceania & Pacific",
+    cluster: "East Asia & Pacific",
+    sub: "Australia · New Zealand · Pacific Islands · Fiji",
+    wsi: 42, tvi: 54,
+    subindex: { intensityDelta: 46, duration: 44, predictability: 38, infraSensitivity: 52, resourceDependency: 58, peakSeasonality: 52 },
+    anomaly: "Australia is in a transition phase following peak El Niño drought conditions — the 2025–2026 summer brought severe drought across Queensland and New South Wales with record bushfire seasons. La Niña transition signals in late 2026 suggest improving conditions, but drought legacy effects persist. The Great Barrier Reef experienced its sixth mass bleaching event in 2026 with 68% bleached extent. New Zealand's Southern Alps received below-average snowfall impacting ski season operations.",
+    flights: { level: "low", desc: "Australian east coast airports are operating normally. Trans-Tasman and Pacific Island routes show strong performance. Some Pacific Island airstrip maintenance delays due to earlier storm season. Overall network performance is close to historical norms." },
+    accommodation: { level: "medium", desc: "Queensland and NSW coastal areas are still in drought water-management mode. Great Barrier Reef resort islands (Hamilton, Lizard, Heron) are operating but guest experience is impacted by bleaching. New Zealand South Island ski resorts are running reduced terrain due to low snowpack." },
+    experiences: { level: "medium", desc: "Great Barrier Reef snorkeling and diving experiences are significantly degraded — bleaching affects all major reef systems accessible from Cairns and the Whitsundays. South Island glacier walks in New Zealand face reduced access due to accelerated ice retreat. Pacific Island reef and kayaking experiences in Fiji and Vanuatu have variable quality." },
+    trend: "down"
+  }
+};
+
+// ════════════════════════════════════════
+// SCORE UTILITY FUNCTIONS
+// ════════════════════════════════════════
+
+function calcWDS(r) {
+  return Math.round(r.wsi * 0.6 + r.tvi * 0.4);
+}
+
+function scoreColor(s) {
+  if (s < 40) return '#1A6FA8';
+  if (s < 60) return '#2E9BBF';
+  if (s < 72) return '#C45E0A';
+  if (s < 84) return '#A82A10';
+  return '#8B1A1A';
+}
+
+function riskIcon(level) {
+  if (level === 'low')    return '✈';
+  if (level === 'medium') return '⚡';
+  return '⚠';
+}
+
+const SECTOR_ICONS = {
+  flights: '✈',
+  accommodation: '🏨',
+  experiences: '🤿'
+};
+
+const SECTOR_LABELS = {
+  flights: 'Flights & Air Transit',
+  accommodation: 'Accommodations & Utilities',
+  experiences: 'Experiences, Tours & Reefs'
+};
+
+const SUB_LABELS = {
+  intensityDelta:     'Intensity\nDelta',
+  duration:           'Duration',
+  predictability:     'Predictability\nVariance',
+  infraSensitivity:   'Infra\nSensitivity',
+  resourceDependency: 'Resource\nDependency',
+  peakSeasonality:    'Peak\nSeasonality'
+};
+
+function subColor(v) {
+  if (v < 40) return '#1A6FA8';
+  if (v < 65) return '#C45E0A';
+  return '#A82A18';
+}
+
+// ════════════════════════════════════════
+// MAP REGION COLORS
+// Apply heat-map fill based on WDS score
+// ════════════════════════════════════════
+
+function applyMapColors() {
+  Object.entries(REGIONS).forEach(([key, r]) => {
+    const el = document.getElementById('r-' + key);
+    if (!el) return;
+    const wds = calcWDS(r);
+    el.style.fill = scoreColor(wds);
+  });
+}
+
+// ════════════════════════════════════════
+// GAUGE ANIMATION
+// ════════════════════════════════════════
+
+function animateGauge(score) {
+  const arc = document.getElementById('gauge-arc');
+  const scoreEl = document.getElementById('gauge-score');
+  const total = 141.4; // arc length of semicircle
+  const offset = total - (score / 100) * total;
+  const color = scoreColor(score);
+
+  arc.style.stroke = color;
+  arc.style.strokeDashoffset = offset;
+  scoreEl.style.color = color;
+
+  // Count up animation
+  let current = 0;
+  const step = score / 40;
+  const timer = setInterval(() => {
+    current = Math.min(current + step, score);
+    scoreEl.textContent = Math.round(current);
+    if (current >= score) clearInterval(timer);
+  }, 20);
+}
+
+// ════════════════════════════════════════
+// RENDER SIDEBAR
+// ════════════════════════════════════════
+
+function renderSidebar(key) {
+  const r = REGIONS[key];
+  if (!r) return;
+
+  const wds = calcWDS(r);
+  const wsi = r.wsi;
+  const tvi = r.tvi;
+  const color = scoreColor(wds);
+
+  // Show/hide panels
+  document.getElementById('sidebar-empty').style.display = 'none';
+  const content = document.getElementById('sidebar-content');
+  content.classList.add('visible');
+
+  // Header
+  document.getElementById('s-cluster').textContent = r.cluster.toUpperCase();
+  document.getElementById('s-name').textContent = r.name;
+  document.getElementById('s-sub').textContent = r.sub;
+
+  // Bars
+  setTimeout(() => {
+    document.getElementById('wsi-bar').style.width = wsi + '%';
+    document.getElementById('wsi-bar').style.background = scoreColor(wsi);
+    document.getElementById('tvi-bar').style.width = tvi + '%';
+    document.getElementById('tvi-bar').style.background = scoreColor(tvi);
+    document.getElementById('wds-bar').style.width = wds + '%';
+    document.getElementById('wds-bar').style.background = color;
+  }, 80);
+
+  document.getElementById('wsi-val').textContent = wsi;
+  document.getElementById('tvi-val').textContent = tvi;
+  document.getElementById('wds-val').textContent = wds;
+
+  // Trend badge
+  const trendEl = document.getElementById('trend-badge');
+  if (r.trend === 'up') {
+    trendEl.innerHTML = '<span class="trend-badge trend-up">↑ Disruption worsening</span>';
+  } else if (r.trend === 'down') {
+    trendEl.innerHTML = '<span class="trend-badge trend-down">↓ Conditions improving</span>';
+  } else {
+    trendEl.innerHTML = '<span class="trend-badge trend-flat">→ Conditions stable</span>';
+  }
+
+  // Gauge
+  animateGauge(wds);
+
+  // Anomaly
+  document.getElementById('s-anomaly').textContent = r.anomaly;
+
+  // Risk cards
+  const sectors = ['flights', 'accommodation', 'experiences'];
+  const cardsHTML = sectors.map(s => {
+    const d = r[s];
+    return `
+    <div class="risk-card">
+      <div class="risk-icon ${d.level}">${SECTOR_ICONS[s]}</div>
+      <div class="risk-body">
+        <div class="risk-title">
+          ${SECTOR_LABELS[s]}
+          <span class="risk-pill ${d.level}">${d.level.toUpperCase()}</span>
+        </div>
+        <div class="risk-desc">${d.desc}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('risk-cards').innerHTML = cardsHTML;
+
+  // Sub-index grid
+  const sub = r.subindex;
+  const subKeys = ['intensityDelta','duration','predictability','infraSensitivity','resourceDependency','peakSeasonality'];
+  const subShortLabels = ['Intensity Δ','Duration','Predictability','Infra Sensitivity','Resource Dep.','Peak Season'];
+  const subHTML = subKeys.map((k, i) => `
+    <div class="subindex-cell">
+      <div class="subindex-key">${subShortLabels[i]}</div>
+      <div class="subindex-val" style="color:${subColor(sub[k])}">${sub[k]}</div>
+    </div>`).join('');
+  document.getElementById('subindex-grid').innerHTML = subHTML;
+
+  // Scroll to top of sidebar on mobile
+  if (window.innerWidth <= 768) {
+    document.querySelector('.sidebar').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+// ════════════════════════════════════════
+// MAP INTERACTIONS
+// ════════════════════════════════════════
+
+let activeRegion = null;
+
+document.querySelectorAll('.region').forEach(el => {
+  el.addEventListener('click', function() {
+    const key = this.dataset.region;
+
+    // Deactivate previous
+    if (activeRegion) {
+      document.getElementById('r-' + activeRegion)?.classList.remove('active');
+    }
+
+    activeRegion = key;
+    this.classList.add('active');
+
+    renderSidebar(key);
+
+    // Hide hint after first click
+    document.getElementById('map-hint').classList.add('hidden');
+  });
+});
+
+// ════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════
+applyMapColors();
+
+</script>
+</body>
+</html>
