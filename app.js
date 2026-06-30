@@ -4,78 +4,153 @@
 // ════════════════════════════════════════
 
 let currentRegion = null;
-const regionElements = document.querySelectorAll('.region');
+const canvas = document.getElementById('bubble-canvas');
 const sidebarContent = document.getElementById('sidebar-content');
 const sidebarEmpty = document.getElementById('sidebar-empty');
 const mapHint = document.getElementById('map-hint');
 
 // ── INITIALIZATION ──
 document.addEventListener('DOMContentLoaded', () => {
-  initializeRegionListeners();
+  renderMap();
   addAccessibilityAttributes();
-  debounceHoverEffects();
 });
 
-// ── REGION INTERACTION ──
-function initializeRegionListeners() {
-  regionElements.forEach(element => {
-    const regionId = element.getAttribute('data-region');
+// ── MAP RENDERING (DYNAMIC BUBBLE CHART) ──
+function renderMap() {
+  if (!canvas) return;
+  
+  // Clear map but retain coordinate system base grid line
+  canvas.innerHTML = '<line x1="0" y1="250" x2="1000" y2="250" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="5,5" />';
+
+  // Loop through all regions loaded from data.js (assuming REGIONS is defined there)
+  if (typeof REGIONS === 'undefined') return;
+
+  Object.keys(REGIONS).forEach(id => {
+    const data = REGIONS[id];
     
-    element.addEventListener('click', () => selectRegion(regionId));
-    element.addEventListener('keydown', (e) => {
+    // Calculate the overall WDS score
+    const wds = Math.round((data.wsi * 0.6) + (data.tvi * 0.4));
+    
+    // Scale bubble radius dynamically based on the WDS score
+    const radius = 15 + (wds * 0.4);
+    
+    // Match score to the corresponding safety color
+    let colorStr = '#f59e0b'; // Moderate (Amber)
+    if (wds < 36) {
+      colorStr = '#10b981'; // Low (Green)
+    } else if (wds >= 61 && wds < 81) {
+      colorStr = '#ea580c'; // High (Orange)
+    } else if (wds >= 81) {
+      colorStr = '#e11d48'; // Severe (Red)
+    }
+
+    // Create SVG Group Container for each region
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "bubble");
+    g.setAttribute("id", `grp-${id}`);
+    g.setAttribute("data-region", id);
+    
+    // Add pulsing warning animation to severe threat areas
+    if (wds >= 81) {
+      g.classList.add("pulse-severe");
+    }
+    
+    // Click & Keyboard Enter event triggers
+    g.addEventListener('click', () => selectRegion(id));
+    g.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        selectRegion(regionId);
+        selectRegion(id);
       }
     });
+
+    // Create the visual Circle
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", data.x || 500); // Default middle if x coordinate is missing
+    circle.setAttribute("cy", data.y || 250); // Default middle if y coordinate is missing
+    circle.setAttribute("r", radius);
+    circle.setAttribute("fill", `${colorStr}40`); // Transparent fill matching the color
+    circle.setAttribute("stroke", colorStr);
+    circle.setAttribute("stroke-width", "2");
+    circle.setAttribute("id", `circ-${id}`);
+    circle.style.transition = "all 0.3s ease";
+
+    // Create the Map Text Label
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", data.x || 500);
+    text.setAttribute("y", (data.y || 250) + radius + 15);
+    text.setAttribute("fill", "#94a3b8");
+    text.setAttribute("font-size", "11");
+    text.setAttribute("text-anchor", "middle");
+    text.setAttribute("class", "pointer-events-none font-semibold tracking-wide");
+    text.textContent = data.name || id;
+
+    // Compile SVG Nodes
+    g.appendChild(circle);
+    g.appendChild(text);
+    canvas.appendChild(g);
   });
 }
 
+// ── REGION SELECTION MANAGEMENT ──
 function selectRegion(regionId) {
-  // Remove active state from all regions
-  regionElements.forEach(el => el.classList.remove('active'));
+  // Reset all active stroke highlights
+  document.querySelectorAll('circle[id^="circ-"]').forEach(circ => {
+    circ.classList.remove('active-bubble');
+    circ.setAttribute('stroke-width', '2');
+  });
   
-  // Set new active region
-  const activeElement = document.getElementById(`r-${regionId}`);
-  if (activeElement) activeElement.classList.add('active');
+  // Highlight the chosen bubble
+  const activeCirc = document.getElementById(`circ-${regionId}`);
+  if (activeCirc) {
+    activeCirc.classList.add('active-bubble');
+    activeCirc.setAttribute('stroke-width', '4');
+  }
   
   currentRegion = regionId;
   
-  // Update sidebar
+  // Retrieve corresponding datasets and push to sidebar UI
   const regionData = REGIONS[regionId];
   if (regionData) {
     displayRegionData(regionData);
-    sidebarEmpty.style.display = 'none';
-    sidebarContent.classList.add('visible');
-    mapHint.classList.add('hidden');
+    if (sidebarEmpty) sidebarEmpty.style.display = 'none';
+    if (sidebarContent) sidebarContent.classList.add('visible');
+    if (mapHint) mapHint.classList.add('hidden');
   }
 }
 
+// ── SIDEBAR RENDERING ──
 function displayRegionData(data) {
-  // Header
-  document.getElementById('s-cluster').textContent = data.cluster;
-  document.getElementById('s-name').textContent = data.name;
-  document.getElementById('s-sub').textContent = data.sub;
+  // Set simple text identifiers
+  const clusterEl = document.getElementById('s-cluster');
+  const nameEl = document.getElementById('s-name');
+  const subEl = document.getElementById('s-sub');
+  const anomalyEl = document.getElementById('s-anomaly');
+
+  if (clusterEl) clusterEl.textContent = data.cluster || '';
+  if (nameEl) nameEl.textContent = data.name || '';
+  if (subEl) subEl.textContent = data.sub || '';
+  if (anomalyEl) anomalyEl.textContent = data.anomaly || '';
   
-  // Calculate WDS score
+  // Calculate WDS score dynamically
   const wds = Math.round((data.wsi * 0.6) + (data.tvi * 0.4));
   
-  // Gauge and score display
+  // Update gauge dial & progress bar charts
   updateGauge(wds, data.wsi, data.tvi);
   
-  // Anomaly section
-  document.getElementById('s-anomaly').textContent = data.anomaly;
-  
-  // Risk cards
-  displayRiskCards(data);
-  
-  // Subindex grid
-  displaySubindexGrid(data.subindex);
-  
-  // Trend badge
-  displayTrendBadge(data.trend);
+  // Update risk vectors and metrics lists
+  if (data.flights && data.accommodation && data.experiences) {
+    displayRiskCards(data);
+  }
+  if (data.subindex) {
+    displaySubindexGrid(data.subindex);
+  }
+  if (data.trend) {
+    displayTrendBadge(data.trend);
+  }
 }
 
+// ── GAUGE DIAL & PROGRESS BARS ANIMATION ──
 function updateGauge(wds, wsi, tvi) {
   const gaugeArc = document.getElementById('gauge-arc');
   const gaugeScore = document.getElementById('gauge-score');
@@ -87,39 +162,43 @@ function updateGauge(wds, wsi, tvi) {
   const wsiVal = document.getElementById('wsi-val');
   const tviVal = document.getElementById('tvi-val');
   
-  // Clamp values to 0-100
   const clampedWDS = Math.min(Math.max(wds, 0), 100);
   const clampedWSI = Math.min(Math.max(wsi, 0), 100);
   const clampedTVI = Math.min(Math.max(tvi, 0), 100);
   
-  // Determine color based on WDS score
-  let arcColor = '#1A6FA8'; // Low
-  if (clampedWDS >= 50 && clampedWDS < 75) arcColor = '#C45E0A'; // Mid
-  if (clampedWDS >= 75) arcColor = '#8B1A1A'; // High
+  // Dynamic color matching
+  let arcColor = '#10b981';
+  if (clampedWDS >= 36 && clampedWDS < 61) arcColor = '#f59e0b';
+  if (clampedWDS >= 61 && clampedWDS < 81) arcColor = '#ea580c';
+  if (clampedWDS >= 81) arcColor = '#e11d48';
   
-  // Arc animation (stroke-dashoffset)
-  const arcLength = 141.4;
-  const arcOffset = arcLength * (1 - clampedWDS / 100);
-  gaugeArc.style.strokeDashoffset = arcOffset;
-  gaugeArc.style.stroke = arcColor;
+  // Update round gauge stroke geometry
+  if (gaugeArc) {
+    const arcLength = 141.4;
+    const arcOffset = arcLength * (1 - clampedWDS / 100);
+    gaugeArc.style.strokeDashoffset = arcOffset;
+    gaugeArc.style.stroke = arcColor;
+  }
   
-  // Score display
-  gaugeScore.textContent = clampedWDS;
-  gaugeScore.style.color = arcColor;
+  if (gaugeScore) {
+    gaugeScore.textContent = clampedWDS;
+    gaugeScore.style.color = arcColor;
+  }
   
-  // Bar fills
-  wdsBar.style.width = clampedWDS + '%';
-  wsiBar.style.width = clampedWSI + '%';
-  tviBar.style.width = clampedTVI + '%';
+  // Fill the horizontal bar ratios
+  if (wdsBar) wdsBar.style.width = clampedWDS + '%';
+  if (wsiBar) wsiBar.style.width = clampedWSI + '%';
+  if (tviBar) tviBar.style.width = clampedTVI + '%';
   
-  // Values
-  wdsVal.textContent = clampedWDS;
-  wsiVal.textContent = clampedWSI;
-  tviVal.textContent = clampedTVI;
+  if (wdsVal) wdsVal.textContent = clampedWDS;
+  if (wsiVal) wsiVal.textContent = clampedWSI;
+  if (tviVal) tviVal.textContent = clampedTVI;
 }
 
+// ── SECTOR ANALYSIS (FLIGHTS, HOTELS, TOURS) ──
 function displayRiskCards(data) {
   const risksContainer = document.getElementById('risk-cards');
+  if (!risksContainer) return;
   risksContainer.innerHTML = '';
   
   const risks = [
@@ -129,6 +208,7 @@ function displayRiskCards(data) {
   ];
   
   risks.forEach(({ sector, data: riskData, icon }) => {
+    if (!riskData) return;
     const card = document.createElement('div');
     card.className = 'risk-card';
     
@@ -155,8 +235,10 @@ function displayRiskCards(data) {
   });
 }
 
+// ── DETAILED CLIMATE & TOURISM METRICS GRID ──
 function displaySubindexGrid(subindex) {
   const grid = document.getElementById('subindex-grid');
+  if (!grid) return;
   grid.innerHTML = '';
   
   const labels = {
@@ -186,8 +268,10 @@ function displaySubindexGrid(subindex) {
   });
 }
 
+// ── TREND COMPONENT BADGE ──
 function displayTrendBadge(trend) {
   const container = document.getElementById('trend-badge');
+  if (!container) return;
   container.innerHTML = '';
   
   const trendMap = {
@@ -205,9 +289,9 @@ function displayTrendBadge(trend) {
   container.appendChild(badge);
 }
 
-// ── ACCESSIBILITY ──
+// ── ACCESSIBILITY CONTROL ──
 function addAccessibilityAttributes() {
-  regionElements.forEach(element => {
+  document.querySelectorAll('.bubble').forEach(element => {
     const regionId = element.getAttribute('data-region');
     const regionName = REGIONS[regionId]?.name || regionId;
     
@@ -216,53 +300,36 @@ function addAccessibilityAttributes() {
     element.setAttribute('aria-label', `Select ${regionName} region`);
   });
   
-  // SVG map accessibility
-  const worldMap = document.getElementById('world-map');
-  worldMap.setAttribute('role', 'img');
-  worldMap.setAttribute('aria-label', 'Interactive world map showing weather disruption indices for 14 regions');
+  if (canvas) {
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', 'Interactive bubble map showing weather disruption indices for global regions');
+  }
 }
 
-// ── PERFORMANCE ──
-function debounceHoverEffects() {
-  let hoverTimeout;
-  
-  regionElements.forEach(element => {
-    element.addEventListener('mouseenter', () => {
-      clearTimeout(hoverTimeout);
-      element.style.filter = 'brightness(1.35)';
-    });
-    
-    element.addEventListener('mouseleave', () => {
-      hoverTimeout = setTimeout(() => {
-        if (!element.classList.contains('active')) {
-          element.style.filter = '';
-        }
-      }, 100);
-    });
-  });
-}
-
-// ── RESPONSIVE SIDEBAR HINT ──
+// ── RESPONSIVE ADAPTABILITY ──
 window.addEventListener('resize', () => {
-  if (window.innerWidth <= 768 && sidebarContent.classList.contains('visible')) {
-    mapHint.classList.add('hidden');
-  } else if (window.innerWidth > 768 && !sidebarContent.classList.contains('visible')) {
-    mapHint.classList.remove('hidden');
+  if (window.innerWidth <= 768 && sidebarContent && sidebarContent.classList.contains('visible')) {
+    if (mapHint) mapHint.classList.add('hidden');
+  } else if (window.innerWidth > 768 && sidebarContent && !sidebarContent.classList.contains('visible')) {
+    if (mapHint) mapHint.classList.remove('hidden');
   }
 });
 
-// ── KEYBOARD NAVIGATION ──
+// ── KEYBOARD CONTROLS (ESCAPE KEY DESELECT) ──
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && currentRegion) {
     currentRegion = null;
-    regionElements.forEach(el => el.classList.remove('active'));
-    sidebarEmpty.style.display = 'flex';
-    sidebarContent.classList.remove('visible');
-    mapHint.classList.remove('hidden');
+    document.querySelectorAll('circle[id^="circ-"]').forEach(circ => {
+      circ.classList.remove('active-bubble');
+      circ.setAttribute('stroke-width', '2');
+    });
+    if (sidebarEmpty) sidebarEmpty.style.display = 'flex';
+    if (sidebarContent) sidebarContent.classList.remove('visible');
+    if (mapHint) mapHint.classList.remove('hidden');
   }
 });
 
-// ── ANIMATION PREFERENCES ──
+// ── REDUCED MOTION SAFEGUARDS ──
 if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
   document.querySelectorAll('[style*="transition"]').forEach(el => {
     el.style.transition = 'none';
