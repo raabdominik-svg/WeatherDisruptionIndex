@@ -5,6 +5,7 @@
 
 const REGIONS = {
   "north-america": {
+    x: 180, y: 150,
     name: "North America",
     cluster: "Americas",
     sub: "United States · Canada · Mexico coasts",
@@ -18,6 +19,7 @@ const REGIONS = {
   },
 
   "caribbean": {
+    x: 260, y: 230,
     name: "Caribbean Basin",
     cluster: "Americas",
     sub: "Islands · Reef systems · Cruise corridors",
@@ -31,6 +33,7 @@ const REGIONS = {
   },
 
   "central-america": {
+    x: 220, y: 250,
     name: "Central America",
     cluster: "Americas",
     sub: "Costa Rica · Panama · Guatemala · Honduras",
@@ -44,6 +47,7 @@ const REGIONS = {
   },
 
   "south-america": {
+    x: 280, y: 350,
     name: "South America",
     cluster: "Americas",
     sub: "Amazon · Patagonia · Andes · Brazil coast",
@@ -57,6 +61,7 @@ const REGIONS = {
   },
 
   "northern-europe": {
+    x: 480, y: 100,
     name: "Northern Europe",
     cluster: "Europe & Mediterranean",
     sub: "Scandinavia · UK · Netherlands · Baltics",
@@ -70,6 +75,7 @@ const REGIONS = {
   },
 
   "mediterranean": {
+    x: 500, y: 160,
     name: "Mediterranean Basin",
     cluster: "Europe & Mediterranean",
     sub: "Spain · Italy · Greece · Turkey · Morocco · Tunisia",
@@ -83,6 +89,7 @@ const REGIONS = {
   },
 
   "middle-east": {
+    x: 580, y: 190,
     name: "Middle East & Gulf",
     cluster: "Europe & Mediterranean",
     sub: "UAE · Saudi Arabia · Jordan · Oman · Red Sea",
@@ -96,6 +103,7 @@ const REGIONS = {
   },
 
   "east-africa": {
+    x: 570, y: 280,
     name: "East Africa",
     cluster: "Africa & Indian Ocean",
     sub: "Kenya · Tanzania · Rwanda · Zanzibar · Mozambique",
@@ -109,6 +117,7 @@ const REGIONS = {
   },
 
   "southern-africa": {
+    x: 530, y: 380,
     name: "Southern Africa",
     cluster: "Africa & Indian Ocean",
     sub: "South Africa · Botswana · Zimbabwe · Zambia · Namibia",
@@ -122,6 +131,7 @@ const REGIONS = {
   },
 
   "indian-ocean": {
+    x: 660, y: 290,
     name: "Indian Ocean Islands",
     cluster: "Africa & Indian Ocean",
     sub: "Maldives · Seychelles · Mauritius · Réunion",
@@ -135,6 +145,7 @@ const REGIONS = {
   },
 
   "south-asia": {
+    x: 690, y: 210,
     name: "South Asia",
     cluster: "South & Central Asia",
     sub: "India · Nepal · Sri Lanka · Maldives monsoon belt",
@@ -148,6 +159,7 @@ const REGIONS = {
   },
 
   "southeast-asia": {
+    x: 780, y: 250,
     name: "Southeast Asia",
     cluster: "South & Central Asia",
     sub: "Thailand · Bali · Vietnam · Philippines · Malaysia",
@@ -161,6 +173,7 @@ const REGIONS = {
   },
 
   "east-asia": {
+    x: 820, y: 140,
     name: "East Asia",
     cluster: "East Asia & Pacific",
     sub: "Japan · South Korea · China · Taiwan · Hong Kong",
@@ -174,6 +187,7 @@ const REGIONS = {
   },
 
   "oceania": {
+    x: 860, y: 390,
     name: "Oceania & Pacific",
     cluster: "East Asia & Pacific",
     sub: "Australia · New Zealand · Pacific Islands · Fiji",
