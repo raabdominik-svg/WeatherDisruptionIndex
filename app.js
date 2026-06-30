@@ -10,21 +10,39 @@ const sidebarEmpty = document.getElementById('sidebar-empty');
 const mapHint = document.getElementById('map-hint');
 
 // ── INITIALIZATION ──
-document.addEventListener('DOMContentLoaded', () => {
+function initApp() {
   renderMap();
   addAccessibilityAttributes();
-});
+}
+
+// Safely boot the app regardless of when the script loads
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp);
+} else {
+  initApp();
+}
 
 // ── MAP RENDERING (DYNAMIC BUBBLE CHART) ──
 function renderMap() {
   if (!canvas) return;
+
+  // Check if data.js loaded successfully. If not, print error directly to map.
+  if (typeof REGIONS === 'undefined') {
+    console.error("REGIONS data is undefined. data.js may not have loaded.");
+    const errorMsg = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    errorMsg.setAttribute("x", "500");
+    errorMsg.setAttribute("y", "250");
+    errorMsg.setAttribute("fill", "#e11d48");
+    errorMsg.setAttribute("text-anchor", "middle");
+    errorMsg.textContent = "Error: Data failed to load. Check file paths and console.";
+    canvas.appendChild(errorMsg);
+    return;
+  }
   
-  // Clear map but retain coordinate system base grid line
-  canvas.innerHTML = '<line x1="0" y1="250" x2="1000" y2="250" stroke="rgba(255,255,255,0.05)" stroke-width="1" stroke-dasharray="5,5" />';
+  // Clear any existing generated bubbles, but LEAVE the HTML equator line intact
+  canvas.querySelectorAll('.bubble').forEach(el => el.remove());
 
-  // Loop through all regions loaded from data.js (assuming REGIONS is defined there)
-  if (typeof REGIONS === 'undefined') return;
-
+  // Loop through all regions loaded from data.js
   Object.keys(REGIONS).forEach(id => {
     const data = REGIONS[id];
     
@@ -44,11 +62,18 @@ function renderMap() {
       colorStr = '#e11d48'; // Severe (Red)
     }
 
+    // Default to center if coordinates are missing
+    const x = data.x || 500;
+    const y = data.y || 250;
+
     // Create SVG Group Container for each region
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", "bubble");
     g.setAttribute("id", `grp-${id}`);
     g.setAttribute("data-region", id);
+    
+    // FIX: Override CSS transform-origin with explicit coordinates to prevent Safari bug
+    g.style.transformOrigin = `${x}px ${y}px`;
     
     // Add pulsing warning animation to severe threat areas
     if (wds >= 81) {
@@ -66,10 +91,13 @@ function renderMap() {
 
     // Create the visual Circle
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", data.x || 500); // Default middle if x coordinate is missing
-    circle.setAttribute("cy", data.y || 250); // Default middle if y coordinate is missing
+    circle.setAttribute("cx", x);
+    circle.setAttribute("cy", y);
     circle.setAttribute("r", radius);
-    circle.setAttribute("fill", `${colorStr}40`); // Transparent fill matching the color
+    
+    // FIX: Use separate fill and fill-opacity to guarantee cross-browser compatibility
+    circle.setAttribute("fill", colorStr);
+    circle.setAttribute("fill-opacity", "0.25");
     circle.setAttribute("stroke", colorStr);
     circle.setAttribute("stroke-width", "2");
     circle.setAttribute("id", `circ-${id}`);
@@ -77,8 +105,8 @@ function renderMap() {
 
     // Create the Map Text Label
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    text.setAttribute("x", data.x || 500);
-    text.setAttribute("y", (data.y || 250) + radius + 15);
+    text.setAttribute("x", x);
+    text.setAttribute("y", y + radius + 15);
     text.setAttribute("fill", "#94a3b8");
     text.setAttribute("font-size", "11");
     text.setAttribute("text-anchor", "middle");
@@ -121,7 +149,6 @@ function selectRegion(regionId) {
 
 // ── SIDEBAR RENDERING ──
 function displayRegionData(data) {
-  // Set simple text identifiers
   const clusterEl = document.getElementById('s-cluster');
   const nameEl = document.getElementById('s-name');
   const subEl = document.getElementById('s-sub');
@@ -132,13 +159,10 @@ function displayRegionData(data) {
   if (subEl) subEl.textContent = data.sub || '';
   if (anomalyEl) anomalyEl.textContent = data.anomaly || '';
   
-  // Calculate WDS score dynamically
   const wds = Math.round((data.wsi * 0.6) + (data.tvi * 0.4));
   
-  // Update gauge dial & progress bar charts
   updateGauge(wds, data.wsi, data.tvi);
   
-  // Update risk vectors and metrics lists
   if (data.flights && data.accommodation && data.experiences) {
     displayRiskCards(data);
   }
@@ -166,13 +190,11 @@ function updateGauge(wds, wsi, tvi) {
   const clampedWSI = Math.min(Math.max(wsi, 0), 100);
   const clampedTVI = Math.min(Math.max(tvi, 0), 100);
   
-  // Dynamic color matching
   let arcColor = '#10b981';
   if (clampedWDS >= 36 && clampedWDS < 61) arcColor = '#f59e0b';
   if (clampedWDS >= 61 && clampedWDS < 81) arcColor = '#ea580c';
   if (clampedWDS >= 81) arcColor = '#e11d48';
   
-  // Update round gauge stroke geometry
   if (gaugeArc) {
     const arcLength = 141.4;
     const arcOffset = arcLength * (1 - clampedWDS / 100);
@@ -185,7 +207,6 @@ function updateGauge(wds, wsi, tvi) {
     gaugeScore.style.color = arcColor;
   }
   
-  // Fill the horizontal bar ratios
   if (wdsBar) wdsBar.style.width = clampedWDS + '%';
   if (wsiBar) wsiBar.style.width = clampedWSI + '%';
   if (tviBar) tviBar.style.width = clampedTVI + '%';
