@@ -8,12 +8,8 @@ const sidebarContent = document.getElementById('sidebar-content');
 const sidebarEmpty = document.getElementById('sidebar-empty');
 const mapHint = document.getElementById('map-hint');
 
-// ── INITIALIZATION ──
 function initApp() {
-  if (typeof REGIONS === 'undefined') {
-    console.error("REGIONS data not found.");
-    return;
-  }
+  if (typeof REGIONS === 'undefined') return;
   renderMap();
 }
 
@@ -23,7 +19,6 @@ if (document.readyState === 'loading') {
   initApp();
 }
 
-// ── MAP RENDERING ──
 function renderMap() {
   if (!canvas) return;
   canvas.querySelectorAll('.bubble').forEach(el => el.remove());
@@ -33,10 +28,7 @@ function renderMap() {
     const wds = Math.round((data.wsi * 0.6) + (data.tvi * 0.4));
     const radius = 15 + (wds * 0.4);
     
-    let colorStr = '#f59e0b';
-    if (wds < 36) colorStr = '#10b981';
-    else if (wds >= 81) colorStr = '#e11d48';
-    else if (wds >= 61) colorStr = '#ea580c';
+    let colorStr = wds < 36 ? '#10b981' : (wds >= 81 ? '#e11d48' : (wds >= 61 ? '#ea580c' : '#f59e0b'));
 
     const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
     g.setAttribute("class", "bubble");
@@ -68,26 +60,22 @@ function renderMap() {
   });
 }
 
-// ── SIDEBAR POPULATION ──
 function selectRegion(regionId) {
   currentRegion = regionId;
   const data = REGIONS[regionId];
   if (!data) return;
 
-  // UI Toggle
   if (sidebarEmpty) sidebarEmpty.style.display = 'none';
   if (sidebarContent) sidebarContent.classList.add('visible');
   if (mapHint) mapHint.classList.add('hidden');
 
-  // Text contents
-  const elMap = { 's-cluster': data.cluster, 's-name': data.name, 's-sub': data.sub, 's-anomaly': data.anomaly };
-  Object.entries(elMap).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.textContent = val; });
+  document.getElementById('s-cluster').textContent = data.cluster;
+  document.getElementById('s-name').textContent = data.name;
+  document.getElementById('s-sub').textContent = data.sub;
+  document.getElementById('s-anomaly').textContent = data.anomaly;
 
-  // Gauges and Bars
-  const wds = Math.round((data.wsi * 0.6) + (data.tvi * 0.4));
-  updateGauge(wds, data.wsi, data.tvi);
+  updateGauge(Math.round((data.wsi * 0.6) + (data.tvi * 0.4)), data.wsi, data.tvi);
   
-  // Render sub-grids and cards
   if (data.riskCards) renderRiskCards(data.riskCards);
   if (data.subindex) renderSubindex(data.subindex);
   if (data.trend) renderTrend(data.trend);
@@ -95,15 +83,22 @@ function selectRegion(regionId) {
 
 function updateGauge(wds, wsi, tvi) {
   const scoreEl = document.getElementById('gauge-score');
-  if (scoreEl) scoreEl.textContent = wds;
+  if (scoreEl) {
+    scoreEl.textContent = wds;
+    scoreEl.style.color = wds >= 81 ? '#e11d48' : (wds >= 61 ? '#ea580c' : (wds >= 36 ? '#f59e0b' : '#10b981'));
+  }
   
-  // Update bars
-  const bars = { 'wds-bar': wds, 'wsi-bar': wsi, 'tvi-bar': tvi };
-  Object.entries(bars).forEach(([id, val]) => {
-    const bar = document.getElementById(id);
-    const text = document.getElementById(id.replace('bar', 'val'));
-    if (bar) bar.style.width = val + '%';
-    if (text) text.textContent = val;
+  const updates = [
+    { bar: 'wsi-bar', val: 'wsi-val', num: wsi },
+    { bar: 'tvi-bar', val: 'tvi-val', num: tvi },
+    { bar: 'wds-bar', val: 'wds-val', num: wds }
+  ];
+
+  updates.forEach(u => {
+    const b = document.getElementById(u.bar);
+    const v = document.getElementById(u.val);
+    if (b) b.style.width = u.num + '%';
+    if (v) v.textContent = u.num;
   });
 
   const arc = document.getElementById('gauge-arc');
